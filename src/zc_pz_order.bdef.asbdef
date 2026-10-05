@@ -1,0 +1,20 @@
+projection;
+
+define behavior for ZC_PZ_ORDER alias SalesOrder
+use etag
+{
+  use create;
+  use update;
+  use delete;
+
+  use association _Items { create; }
+}
+
+define behavior for ZC_PZ_ORDERITEM alias SalesOrderItem
+use etag
+{
+  use update;
+  use delete;
+
+  use association _Order;
+}

@@ -1,0 +1,5 @@
+@EndUserText.label: 'Pizzeria - Sales order service'
+define service ZUI_PZ_ORDER {
+  expose ZC_PZ_ORDER     as SalesOrder;
+  expose ZC_PZ_ORDERITEM as SalesOrderItem;
+}

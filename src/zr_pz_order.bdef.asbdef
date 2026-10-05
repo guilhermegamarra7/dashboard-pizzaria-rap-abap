@@ -1,0 +1,67 @@
+managed;
+
+define behavior for ZR_PZ_ORDER alias SalesOrder
+persistent table zpz_order
+lock master
+etag master LocalLastChangedAt
+{
+  create;
+  update;
+  delete;
+  association _Items { create; }
+
+  field ( readonly, numbering : managed ) OrderUUID;
+  field ( readonly ) LocalCreatedBy, LocalCreatedAt, LocalLastChangedBy,
+                     LocalLastChangedAt, LastChangedAt;
+
+  mapping for zpz_order
+  {
+    OrderUUID          = order_uuid;
+    Channel            = channel;
+    ExternalID         = external_id;
+    OrderDateTime      = order_datetime;
+    Status             = status;
+    CancelReason       = cancel_reason;
+    ItemsAmount        = items_amount;
+    DeliveryFee        = delivery_fee;
+    StoreDiscount      = store_discount;
+    PlatformIncentive  = platform_incentive;
+    PlatformFees       = platform_fees;
+    NetAmount          = net_amount;
+    Currency           = currency;
+    ItemCount          = item_count;
+    PaymentMethod      = payment_method;
+    DeliveryType       = delivery_type;
+    Rating             = rating;
+    CustomerComment    = customer_comment;
+    LocalCreatedBy     = local_created_by;
+    LocalCreatedAt     = local_created_at;
+    LocalLastChangedBy = local_last_changed_by;
+    LocalLastChangedAt = local_last_changed_at;
+    LastChangedAt      = last_changed_at;
+  }
+}
+
+define behavior for ZR_PZ_ORDERITEM alias SalesOrderItem
+persistent table zpz_order_item
+lock dependent by _Order
+etag master LocalLastChangedAt
+{
+  update;
+  delete;
+  association _Order;
+
+  field ( readonly, numbering : managed ) ItemUUID;
+  field ( readonly ) OrderUUID, LocalLastChangedAt;
+
+  mapping for zpz_order_item
+  {
+    ItemUUID           = item_uuid;
+    OrderUUID          = order_uuid;
+    MenuItemID         = menu_item_id;
+    Quantity           = quantity;
+    TotalAmount        = total_amount;
+    Currency           = currency;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}
