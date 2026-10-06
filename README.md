@@ -62,7 +62,7 @@ erDiagram
 | Object | Type | Description |
 |---|---|---|
 | `ZPZ_*` | Database tables | Persistence layer |
-| `ZCL_PZ_DATA_GENERATOR` | Class | Loads demo data based on real figures (run with F9) |
+| `ZCL_PZ_DATA_GENERATOR` | Class | Loads the menu, recipe costs and the 63 real iFood and 99Food orders from May to October 2026 (run with F9) |
 | `ZR_PZ_ORDER` / `ZR_PZ_ORDERITEM` | CDS view entities | Base layer of the RAP business object (root and child) |
 | `ZR_PZ_ORDER` | Behavior definition | Managed behavior: CRUD, create-by-association, locking, ETag |
 | `ZC_PZ_ORDER` / `ZC_PZ_ORDERITEM` | CDS projection views | App-specific layer with UI annotations |
@@ -132,7 +132,7 @@ erDiagram
 ## Roadmap
 
 - [x] Data model with currency-aware amounts
-- [x] Demo data generator based on real figures
+- [x] Demo data generator with the real orders, menu and recipe costs
 - [x] Managed RAP business object for sales orders, with items
 - [x] OData V4 service and Fiori elements app
 - [ ] Determination: net amount = items amount − store discount − platform fees
