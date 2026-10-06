@@ -1,0 +1,7 @@
+@EndUserText.label: 'Pizzeria - Dashboard service'
+define service ZUI_PZ_DASHBOARD {
+  expose ZC_PZ_MONTHLYREVENUE as MonthlyRevenue;
+  expose ZC_PZ_MENUMARGIN     as MenuMargin;
+  expose ZI_PZ_CHANNEL        as Channel;
+  expose ZI_PZ_MENUITEM       as MenuItem;
+}
