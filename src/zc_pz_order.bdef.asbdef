@@ -1,4 +1,5 @@
 projection;
+strict ( 2 );
 
 define behavior for ZC_PZ_ORDER alias SalesOrder
 use etag
@@ -6,6 +7,8 @@ use etag
   use create;
   use update;
   use delete;
+
+  use action cancelOrder;
 
   use association _Items { create; }
 }

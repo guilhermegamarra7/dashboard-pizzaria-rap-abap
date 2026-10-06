@@ -1,8 +1,10 @@
-managed;
+managed implementation in class zbp_r_pz_order unique;
+strict ( 2 );
 
 define behavior for ZR_PZ_ORDER alias SalesOrder
 persistent table zpz_order
 lock master
+authorization master ( global )
 etag master LocalLastChangedAt
 {
   create;
@@ -11,8 +13,19 @@ etag master LocalLastChangedAt
   association _Items { create; }
 
   field ( readonly, numbering : managed ) OrderUUID;
-  field ( readonly ) LocalCreatedBy, LocalCreatedAt, LocalLastChangedBy,
+  field ( readonly ) Status, StatusCriticality, CancelReason, ItemsAmount, PlatformFees,
+                     NetAmount, ItemCount, Currency,
+                     LocalCreatedBy, LocalCreatedAt, LocalLastChangedBy,
                      LocalLastChangedAt, LastChangedAt;
+  field ( mandatory ) Channel;
+
+  action ( features : instance ) cancelOrder parameter ZD_PZ_CANCEL_REASON result [1] $self;
+  internal action recalculateAmounts;
+
+  determination setDefaults on modify { create; }
+  determination calculateAmounts on modify { create; field Channel, StoreDiscount; }
+
+  validation validateChannel on save { create; field Channel; }
 
   mapping for zpz_order
   {
@@ -45,6 +58,7 @@ etag master LocalLastChangedAt
 define behavior for ZR_PZ_ORDERITEM alias SalesOrderItem
 persistent table zpz_order_item
 lock dependent by _Order
+authorization dependent by _Order
 etag master LocalLastChangedAt
 {
   update;
@@ -52,7 +66,13 @@ etag master LocalLastChangedAt
   association _Order;
 
   field ( readonly, numbering : managed ) ItemUUID;
-  field ( readonly ) OrderUUID, LocalLastChangedAt;
+  field ( readonly ) OrderUUID, TotalAmount, Currency, LocalLastChangedAt;
+  field ( mandatory ) MenuItemID, Quantity;
+
+  determination calculateItemAmount on modify { create; delete; field MenuItemID, Quantity; }
+
+  validation validateMenuItem on save { create; field MenuItemID; }
+  validation validateQuantity on save { create; field Quantity; }
 
   mapping for zpz_order_item
   {

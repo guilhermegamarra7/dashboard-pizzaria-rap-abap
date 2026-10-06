@@ -4,12 +4,18 @@
 define root view entity ZR_PZ_ORDER
   as select from zpz_order
   composition [0..*] of ZR_PZ_ORDERITEM as _Items
+  association [1..1] to ZI_PZ_CHANNEL   as _Channel on $projection.Channel = _Channel.Channel
 {
   key order_uuid            as OrderUUID,
       channel               as Channel,
       external_id           as ExternalID,
       order_datetime        as OrderDateTime,
       status                as Status,
+      case status
+        when 'COMPLETED' then 3
+        when 'CANCELLED' then 1
+        else 0
+      end                   as StatusCriticality,
       cancel_reason         as CancelReason,
       @Semantics.amount.currencyCode: 'Currency'
       items_amount          as ItemsAmount,
@@ -39,5 +45,6 @@ define root view entity ZR_PZ_ORDER
       local_last_changed_at as LocalLastChangedAt,
       @Semantics.systemDateTime.lastChangedAt: true
       last_changed_at       as LastChangedAt,
-      _Items
+      _Items,
+      _Channel
 }

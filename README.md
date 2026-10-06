@@ -64,7 +64,10 @@ erDiagram
 | `ZPZ_*` | Database tables | Persistence layer |
 | `ZCL_PZ_DATA_GENERATOR` | Class | Loads the menu, recipe costs and the 63 real iFood and 99Food orders from May to October 2026 (run with F9) |
 | `ZR_PZ_ORDER` / `ZR_PZ_ORDERITEM` | CDS view entities | Base layer of the RAP business object (root and child) |
-| `ZR_PZ_ORDER` | Behavior definition | Managed behavior: CRUD, create-by-association, locking, ETag |
+| `ZI_PZ_CHANNEL` / `ZI_PZ_MENUITEM` | CDS view entities | Master data: channel and menu item names, used for texts and value helps |
+| `ZR_PZ_ORDER` | Behavior definition | Managed behavior (strict mode): CRUD, create-by-association, locking, ETag, determinations, validations and the *Cancel Order* action |
+| `ZBP_R_PZ_ORDER` | Class | Behavior implementation: amount calculations, validations, action and feature control |
+| `ZD_PZ_CANCEL_REASON` | Abstract entity | Parameter of the *Cancel Order* action |
 | `ZC_PZ_ORDER` / `ZC_PZ_ORDERITEM` | CDS projection views | App-specific layer with UI annotations |
 | `ZC_PZ_ORDER` | Behavior definition | Projection behavior |
 | `ZUI_PZ_ORDER` | Service definition | Exposes sales orders and items |
@@ -75,7 +78,10 @@ erDiagram
 | Prefix / suffix | Meaning |
 |---|---|
 | `ZPZ_` | Database table |
+| `ZI_` | Interface view for master data |
 | `ZR_` | RAP base business object (reusable layer) |
+| `ZBP_` | Behavior implementation (behavior pool) |
+| `ZD_` | Abstract entity (action parameter) |
 | `ZC_` | Consumption / projection layer for a specific app |
 | `ZUI_` | Service meant for a UI |
 | `_O4` | OData V4 binding |
@@ -94,6 +100,10 @@ erDiagram
   lost updates when two users edit the same order.
 - **Layered CDS model.** The `ZR_` layer holds the reusable model. UI annotations live only in
   the `ZC_` projection layer.
+- **Derived amounts are never typed in.** Item amounts, order totals, platform fees and the net
+  amount are read-only and calculated by determinations. Both the order and the item
+  determinations call one internal action, `recalculateAmounts`, so the rule lives in one place.
+  Deleting an item also triggers the recalculation.
 - **Clean core.** The code uses only released APIs (`CL_SYSTEM_UUID`, `CL_ABAP_CONTEXT_INFO`,
   `ABP_*` data elements), so it runs on ABAP Cloud.
 
@@ -135,13 +145,14 @@ erDiagram
 - [x] Demo data generator with the real orders, menu and recipe costs
 - [x] Managed RAP business object for sales orders, with items
 - [x] OData V4 service and Fiori elements app
-- [ ] Determination: net amount = items amount − store discount − platform fees
-- [ ] Validations: existing channel, positive quantities
-- [ ] Action: cancel an order with a reason
+- [x] Determinations: item amount = menu price × quantity; order totals, platform fee
+      (from the channel) and net amount = items amount − store discount − platform fees
+- [x] Validations: existing channel and menu item, positive quantities
+- [x] Action: cancel an order with a reason, disabled for cancelled orders (feature control)
+- [x] Value helps and texts for channel and menu item
 - [ ] Draft handling
 - [ ] Menu margin analysis in CDS: price − channel fee − recipe cost
 - [ ] Monthly revenue by channel (analytical CDS)
-- [ ] Value helps for channel and menu item
 - [ ] ABAP Unit tests
 
 ## Author

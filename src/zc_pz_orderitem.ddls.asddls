@@ -1,7 +1,7 @@
 @AccessControl.authorizationCheck: #NOT_REQUIRED
 @EndUserText.label: 'Pizzeria - Sales order item (projection)'
 @UI.headerInfo: { typeName: 'Item', typeNamePlural: 'Items',
-                  title: { type: #STANDARD, value: 'MenuItemID' } }
+                  title: { type: #STANDARD, value: 'MenuItemName' } }
 define view entity ZC_PZ_ORDERITEM
   as projection on ZR_PZ_ORDERITEM
 {
@@ -13,8 +13,14 @@ define view entity ZC_PZ_ORDERITEM
       OrderUUID,
 
       @UI: { lineItem: [{ position: 10 }], identification: [{ position: 10 }] }
+      @Consumption.valueHelpDefinition: [{ entity: { name: 'ZI_PZ_MENUITEM', element: 'MenuItemID' }, useForValidation: true }]
+      @ObjectModel.text.element: ['MenuItemName']
+      @UI.textArrangement: #TEXT_ONLY
       @EndUserText.label: 'Menu Item'
       MenuItemID,
+
+      @EndUserText.label: 'Menu Item Name'
+      _MenuItem.ItemName as MenuItemName,
 
       @UI: { lineItem: [{ position: 20 }], identification: [{ position: 20 }] }
       @EndUserText.label: 'Quantity'
