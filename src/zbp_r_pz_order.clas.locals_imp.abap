@@ -178,12 +178,18 @@ CLASS lhc_salesorder IMPLEMENTATION.
       INTO TABLE @DATA(channels).
 
     LOOP AT orders INTO DATA(order).
+      " Clear the message of the previous check
+      APPEND VALUE #( %tky = order-%tky %state_area = 'VALIDATE_CHANNEL' ) TO reported-salesorder.
+
       IF order-Channel IS INITIAL OR NOT line_exists( channels[ Channel = order-Channel ] ).
         APPEND VALUE #( %tky = order-%tky ) TO failed-salesorder.
         APPEND VALUE #( %tky             = order-%tky
+                        %state_area      = 'VALIDATE_CHANNEL'
                         %msg             = new_message_with_text(
                                              severity = if_abap_behv_message=>severity-error
-                                             text     = |Channel { order-Channel } does not exist| )
+                                             text     = COND #( WHEN order-Channel IS INITIAL
+                                                                THEN `Select a sales channel`
+                                                                ELSE |Channel { order-Channel } does not exist| ) )
                         %element-Channel = if_abap_behv=>mk-on ) TO reported-salesorder.
       ENDIF.
     ENDLOOP.
@@ -194,6 +200,9 @@ ENDCLASS.
 
 CLASS lhc_salesorderitem DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
+    METHODS setItemDefaults FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR SalesOrderItem~setItemDefaults.
+
     METHODS calculateItemAmount FOR DETERMINE ON MODIFY
       IMPORTING keys FOR SalesOrderItem~calculateItemAmount.
 
@@ -207,9 +216,24 @@ ENDCLASS.
 
 CLASS lhc_salesorderitem IMPLEMENTATION.
 
+  METHOD setItemDefaults.
+    READ ENTITIES OF zr_pz_order IN LOCAL MODE
+      ENTITY SalesOrderItem
+        FIELDS ( Quantity ) WITH CORRESPONDING #( keys )
+      RESULT DATA(items).
+
+    MODIFY ENTITIES OF zr_pz_order IN LOCAL MODE
+      ENTITY SalesOrderItem
+        UPDATE FIELDS ( Quantity )
+        WITH VALUE #( FOR item IN items WHERE ( Quantity IS INITIAL )
+                      ( %tky = item-%tky Quantity = 1 ) ).
+  ENDMETHOD.
+
+
   METHOD calculateItemAmount.
     DATA items_to_update TYPE TABLE FOR UPDATE zr_pz_order\\SalesOrderItem.
     DATA order_keys TYPE TABLE FOR ACTION IMPORT zr_pz_order\\SalesOrder~recalculateAmounts.
+    DATA order_uuid TYPE sysuuid_x16.
 
     READ ENTITIES OF zr_pz_order IN LOCAL MODE
       ENTITY SalesOrderItem
@@ -240,23 +264,32 @@ CLASS lhc_salesorderitem IMPLEMENTATION.
     ENDIF.
 
     " Recalculate the orders of new, changed and deleted items. A deleted item can no
-    " longer be read through the business object, so its order comes from the database.
-    order_keys = VALUE #( FOR i IN items ( OrderUUID = i-OrderUUID ) ).
+    " longer be read through the business object, so its order comes from the table that
+    " still holds it: the draft table for a draft, the database table otherwise.
+    order_keys = VALUE #( FOR i IN items ( %is_draft = i-%is_draft OrderUUID = i-OrderUUID ) ).
     LOOP AT keys INTO DATA(key).
-      IF line_exists( items[ ItemUUID = key-ItemUUID ] ).
+      IF line_exists( items[ %is_draft = key-%is_draft ItemUUID = key-ItemUUID ] ).
         CONTINUE.
       ENDIF.
-      SELECT SINGLE FROM zr_pz_orderitem WITH PRIVILEGED ACCESS
-        FIELDS OrderUUID
-        WHERE ItemUUID = @key-ItemUUID
-        INTO @DATA(order_uuid).
-      IF sy-subrc = 0.
-        APPEND VALUE #( OrderUUID = order_uuid ) TO order_keys.
+      CLEAR order_uuid.
+      IF key-%is_draft = if_abap_behv=>mk-on.
+        SELECT SINGLE FROM zpz_order_item_d
+          FIELDS orderuuid
+          WHERE itemuuid = @key-ItemUUID
+          INTO @order_uuid.
+      ELSE.
+        SELECT SINGLE FROM zpz_order_item
+          FIELDS order_uuid
+          WHERE item_uuid = @key-ItemUUID
+          INTO @order_uuid.
+      ENDIF.
+      IF order_uuid IS NOT INITIAL.
+        APPEND VALUE #( %is_draft = key-%is_draft OrderUUID = order_uuid ) TO order_keys.
       ENDIF.
     ENDLOOP.
 
-    SORT order_keys BY OrderUUID.
-    DELETE ADJACENT DUPLICATES FROM order_keys COMPARING OrderUUID.
+    SORT order_keys BY %is_draft OrderUUID.
+    DELETE ADJACENT DUPLICATES FROM order_keys COMPARING %is_draft OrderUUID.
 
     MODIFY ENTITIES OF zr_pz_order IN LOCAL MODE
       ENTITY SalesOrder
@@ -267,7 +300,7 @@ CLASS lhc_salesorderitem IMPLEMENTATION.
   METHOD validateMenuItem.
     READ ENTITIES OF zr_pz_order IN LOCAL MODE
       ENTITY SalesOrderItem
-        FIELDS ( MenuItemID ) WITH CORRESPONDING #( keys )
+        FIELDS ( OrderUUID MenuItemID ) WITH CORRESPONDING #( keys )
       RESULT DATA(items).
 
     IF items IS INITIAL.
@@ -281,12 +314,20 @@ CLASS lhc_salesorderitem IMPLEMENTATION.
       INTO TABLE @DATA(menu_items).
 
     LOOP AT items INTO DATA(item).
+      " Clear the message of the previous check
+      APPEND VALUE #( %tky = item-%tky %state_area = 'VALIDATE_MENU_ITEM' ) TO reported-salesorderitem.
+
       IF NOT line_exists( menu_items[ MenuItemID = item-MenuItemID ] ).
         APPEND VALUE #( %tky = item-%tky ) TO failed-salesorderitem.
         APPEND VALUE #( %tky                = item-%tky
+                        %state_area         = 'VALIDATE_MENU_ITEM'
+                        %path               = VALUE #( SalesOrder-%is_draft = item-%is_draft
+                                                       SalesOrder-OrderUUID = item-OrderUUID )
                         %msg                = new_message_with_text(
                                                 severity = if_abap_behv_message=>severity-error
-                                                text     = |Menu item { item-MenuItemID } does not exist| )
+                                                text     = COND #( WHEN item-MenuItemID IS INITIAL
+                                                                   THEN `Select a menu item`
+                                                                   ELSE |Menu item { item-MenuItemID } does not exist| ) )
                         %element-MenuItemID = if_abap_behv=>mk-on ) TO reported-salesorderitem.
       ENDIF.
     ENDLOOP.
@@ -296,16 +337,24 @@ CLASS lhc_salesorderitem IMPLEMENTATION.
   METHOD validateQuantity.
     READ ENTITIES OF zr_pz_order IN LOCAL MODE
       ENTITY SalesOrderItem
-        FIELDS ( Quantity ) WITH CORRESPONDING #( keys )
+        FIELDS ( OrderUUID Quantity ) WITH CORRESPONDING #( keys )
       RESULT DATA(items).
 
-    LOOP AT items INTO DATA(item) WHERE Quantity <= 0.
-      APPEND VALUE #( %tky = item-%tky ) TO failed-salesorderitem.
-      APPEND VALUE #( %tky              = item-%tky
-                      %msg              = new_message_with_text(
-                                            severity = if_abap_behv_message=>severity-error
-                                            text     = 'Quantity must be greater than zero' )
-                      %element-Quantity = if_abap_behv=>mk-on ) TO reported-salesorderitem.
+    LOOP AT items INTO DATA(item).
+      " Clear the message of the previous check
+      APPEND VALUE #( %tky = item-%tky %state_area = 'VALIDATE_QUANTITY' ) TO reported-salesorderitem.
+
+      IF item-Quantity <= 0.
+        APPEND VALUE #( %tky = item-%tky ) TO failed-salesorderitem.
+        APPEND VALUE #( %tky              = item-%tky
+                        %state_area       = 'VALIDATE_QUANTITY'
+                        %path             = VALUE #( SalesOrder-%is_draft = item-%is_draft
+                                                     SalesOrder-OrderUUID = item-OrderUUID )
+                        %msg              = new_message_with_text(
+                                              severity = if_abap_behv_message=>severity-error
+                                              text     = 'Quantity must be greater than zero' )
+                        %element-Quantity = if_abap_behv=>mk-on ) TO reported-salesorderitem.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 

@@ -1,16 +1,18 @@
 managed implementation in class zbp_r_pz_order unique;
 strict ( 2 );
+with draft;
 
 define behavior for ZR_PZ_ORDER alias SalesOrder
 persistent table zpz_order
-lock master
-authorization master ( global )
+draft table zpz_order_d
 etag master LocalLastChangedAt
+lock master total etag LastChangedAt
+authorization master ( global )
 {
   create;
   update;
   delete;
-  association _Items { create; }
+  association _Items { create; with draft; }
 
   field ( readonly, numbering : managed ) OrderUUID;
   field ( readonly ) Status, StatusCriticality, CancelReason, ItemsAmount, PlatformFees,
@@ -26,6 +28,24 @@ etag master LocalLastChangedAt
   determination calculateAmounts on modify { create; field Channel, StoreDiscount; }
 
   validation validateChannel on save { create; field Channel; }
+
+  draft action Resume;
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+
+  draft determine action Prepare
+  {
+    validation validateChannel;
+    validation SalesOrderItem~validateMenuItem;
+    validation SalesOrderItem~validateQuantity;
+  }
+
+  side effects
+  {
+    field Channel affects field PlatformFees, field NetAmount;
+    field StoreDiscount affects field NetAmount;
+  }
 
   mapping for zpz_order
   {
@@ -57,22 +77,32 @@ etag master LocalLastChangedAt
 
 define behavior for ZR_PZ_ORDERITEM alias SalesOrderItem
 persistent table zpz_order_item
+draft table zpz_order_item_d
+etag master LocalLastChangedAt
 lock dependent by _Order
 authorization dependent by _Order
-etag master LocalLastChangedAt
 {
   update;
   delete;
-  association _Order;
+  association _Order { with draft; }
 
   field ( readonly, numbering : managed ) ItemUUID;
   field ( readonly ) OrderUUID, TotalAmount, Currency, LocalLastChangedAt;
   field ( mandatory ) MenuItemID, Quantity;
 
+  determination setItemDefaults on modify { create; }
   determination calculateItemAmount on modify { create; delete; field MenuItemID, Quantity; }
 
   validation validateMenuItem on save { create; field MenuItemID; }
   validation validateQuantity on save { create; field Quantity; }
+
+  // Any change to an item, including deleting it, changes the order totals
+  side effects
+  {
+    field MenuItemID affects field TotalAmount;
+    field Quantity affects field TotalAmount;
+    $self affects entity _Order;
+  }
 
   mapping for zpz_order_item
   {

@@ -1,5 +1,7 @@
 projection;
 strict ( 2 );
+use draft;
+use side effects;
 
 define behavior for ZC_PZ_ORDER alias SalesOrder
 use etag
@@ -10,7 +12,13 @@ use etag
 
   use action cancelOrder;
 
-  use association _Items { create; }
+  use action Resume;
+  use action Edit;
+  use action Activate;
+  use action Discard;
+  use action Prepare;
+
+  use association _Items { create; with draft; }
 }
 
 define behavior for ZC_PZ_ORDERITEM alias SalesOrderItem
@@ -19,5 +27,5 @@ use etag
   use update;
   use delete;
 
-  use association _Order;
+  use association _Order { with draft; }
 }
