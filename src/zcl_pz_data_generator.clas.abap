@@ -72,6 +72,9 @@ CLASS zcl_pz_data_generator IMPLEMENTATION.
 
 
   METHOD delete_all.
+    " Drafts point to orders that are about to be deleted
+    DELETE FROM zpz_order_item_d.
+    DELETE FROM zpz_order_d.
     DELETE FROM zpz_order_item.
     DELETE FROM zpz_order.
     DELETE FROM zpz_recipe.
