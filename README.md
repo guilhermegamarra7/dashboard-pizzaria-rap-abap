@@ -62,10 +62,11 @@ erDiagram
 | Object | Type | Description |
 |---|---|---|
 | `ZPZ_*` | Database tables | Persistence layer |
+| `ZPZ_ORDER_D` / `ZPZ_ORDER_ITEM_D` | Database tables | Draft tables for orders and items |
 | `ZCL_PZ_DATA_GENERATOR` | Class | Loads the menu, recipe costs and the 63 real iFood and 99Food orders from May to October 2026 (run with F9) |
 | `ZR_PZ_ORDER` / `ZR_PZ_ORDERITEM` | CDS view entities | Base layer of the RAP business object (root and child) |
 | `ZI_PZ_CHANNEL` / `ZI_PZ_MENUITEM` | CDS view entities | Master data: channel and menu item names, used for texts and value helps |
-| `ZR_PZ_ORDER` | Behavior definition | Managed behavior (strict mode): CRUD, create-by-association, locking, ETag, determinations, validations and the *Cancel Order* action |
+| `ZR_PZ_ORDER` | Behavior definition | Managed behavior (strict mode) with draft: CRUD, create-by-association, locking, total ETag, determinations, validations, side effects and the *Cancel Order* action |
 | `ZBP_R_PZ_ORDER` | Class | Behavior implementation: amount calculations, validations, action and feature control |
 | `ZD_PZ_CANCEL_REASON` | Abstract entity | Parameter of the *Cancel Order* action |
 | `ZC_PZ_ORDER` / `ZC_PZ_ORDERITEM` | CDS projection views | App-specific layer with UI annotations |
@@ -97,7 +98,11 @@ erDiagram
 - **UUID keys for transactional data, semantic keys for master data.** Orders and items use
   managed UUID numbering. Menu items and channels use readable business keys.
 - **Optimistic locking.** Standard RAP admin fields with ETag (`LocalLastChangedAt`) prevent
-  lost updates when two users edit the same order.
+  lost updates when two users edit the same order. The total ETag (`LastChangedAt`) does the
+  same for drafts.
+- **Drafts, as in standard Fiori apps.** Changes are kept in a draft until the user saves.
+  Validations run in the `Prepare` step, and their messages point to the order or the item
+  row that caused them.
 - **Layered CDS model.** The `ZR_` layer holds the reusable model. UI annotations live only in
   the `ZC_` projection layer.
 - **Derived amounts are never typed in.** Item amounts, order totals, platform fees and the net
@@ -150,7 +155,7 @@ erDiagram
 - [x] Validations: existing channel and menu item, positive quantities
 - [x] Action: cancel an order with a reason, disabled for cancelled orders (feature control)
 - [x] Value helps and texts for channel and menu item
-- [ ] Draft handling
+- [x] Draft handling with side effects, so totals refresh while the order is edited
 - [ ] Menu margin analysis in CDS: price − channel fee − recipe cost
 - [ ] Monthly revenue by channel (analytical CDS)
 - [ ] ABAP Unit tests
